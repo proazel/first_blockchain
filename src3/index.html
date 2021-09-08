@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script type="text/javascript">
+        let callback = (number, cb) => {
+            // setTimeout -> 비동기
+            setTimeout( ()=>{
+                let sum = 0;
+                for ( let i = 0; i < number; i++){
+                    sum += i;
+                }
+                cb(sum);
+            }, 1000);
+        }
+        console.log('check111');
+        callback(10, (v)=>{
+            console.log(v);
+        })
+        console.log('check222');
+    </script>
+</body>
+</html>
