@@ -3,6 +3,10 @@ const merkle = require('merkle');
 const CryptoJs = require('crypto-js');
 const SHA256 = require('crypto-js/sha256');
 const random = require('random');
+const { hexToBinary } = require('./utils');
+
+const BLOCK_GENERATION_INTERVAL = 10;   // 초
+const BLOCK_ADJUSTIMENT_INTERVAL = 10;  // 초
 
 /*
 사용법
@@ -85,12 +89,62 @@ function nextBlock(data){
     */
     const previousHash = createHash(prevBlock);
     const time = getCurrentTime();
+    const difficulty = getDifficulty(getBlocks()); // getBlocks == [], 배열
 
     const merkleTree = merkle("sha256").sync(data); // 배열
     const merkleRoot = merkleTree.root() || '0'.repeat(64);
 
-    const header = new BlockHeader(version, index, previousHash, time, merkleRoot);
+    const header = findBlock(version, index, previousHash, time, merkleRoot, difficulty);
     return new Block(header, data);
+}
+
+function getDifficulty(blocks){
+    const lastBlock = blocks[blocks.length - 1];
+    if (lastBlock.header.index % BLOCK_ADJUSTIMENT_INTERVAL === 0 && lastBlock.header.index != 0){
+        // 난이도를 조정하는 코드
+        return getAdjustedDifficulty(lastBlock, blocks);
+    }
+    return lastBlock.header.difficulty;
+}
+
+function getAdjustedDifficulty(lastBlock, blocks){
+    // block을 10개 단위로 끊고, 게시판 페이징처럼 이전의 값
+    // 20 - 10 = 10
+    const prevAdjustmentBlock = blocks[blocks.length - BLOCK_ADJUSTIMENT_INTERVAL];
+    const timeToken = lastBlock.header.time - prevAdjustmentBlock.header.time;
+    const timeExpected = BLOCK_ADJUSTIMENT_INTERVAL * BLOCK_GENERATION_INTERVAL;
+
+    if (timeToken < timeExpected/2){
+        return prevAdjustmentBlock.header.difficulty + 1;
+    } else if (timeToken > timeExpected*2){
+        return prevAdjustmentBlock.header.difficulty -1;
+    } else{
+        return prevAdjustmentBlock.header.difficulty;
+    }
+}
+
+function findBlock(version, index, previousHash, time, merkleRoot, difficulty){
+    let nonce = 0;
+
+    while(true){
+        let hash = createHeaderHash(version, index, previousHash, time, merkleRoot, difficulty, nonce);
+        if (hashMatchDifficulty(hash, difficulty)){ // 앞으로 만들 header의 hash값의 앞자리 0이 몇개인지 체크
+            return new BlockHeader(version, index, previousHash, time, merkleRoot, difficulty, nonce);        
+        }
+        nonce++;
+    }
+}
+
+function hashMatchDifficulty(hash, difficulty){
+    // hash == 16진수 -> 2진수 변환
+    const hashBinary = hexToBinary(hash);
+    const prefix = '0'.repeat(difficulty);
+    return hashBinary.startsWith(prefix);
+}
+
+function createHeaderHash(version, index, previousHash, time, merkleRoot, difficulty, nonce){
+    let txt = version + index + previousHash + time + merkleRoot + difficulty + nonce;
+    return CryptoJs.SHA256(txt).toString().toUpperCase();
 }
 
 function createHash(block){
