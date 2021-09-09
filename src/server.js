@@ -4,8 +4,9 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 
-const bc = require('./block.js');
-const ws = require('./network.js');
+const bc = require('./block');
+const ws = require('./network');
+const wl = require('./wallet');
 
 app.use(bodyParser.json());
 
@@ -61,6 +62,12 @@ app.get('/stop', (req,res)=>{
     process.exit(0);
 });
 
+app.get('/address', (req,res)=>{
+    const address = wl.getPublicFromWallet();
+    res.send({ address });
+})
+
+wl.initWallet();
 ws.wsInit();
 app.listen(port, ()=>{
     console.log(`server on PORT ${port}`);
